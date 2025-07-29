@@ -16,9 +16,9 @@ use std::path::PathBuf;
 #[derive(Debug, Deserialize, Serialize)]
 pub struct UserConfig {
   /** Editor config */
-  editor: EditorConfig,
+  pub editor: EditorConfig,
   /** LLM config */
-  llm: LLMConfig,
+  pub llm: LLMConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -30,13 +30,13 @@ pub struct EditorConfig {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct LLMConfig {
   /** Base URL of the LLM server */
-  base_url: String,
+  pub base_url: String,
 
   /** Model name */
-  model: String,
+  pub model: String,
 
   /** Auth token of the LLM server */
-  auth_token: Option<String>,
+  pub auth_token: Option<String>,
 }
 
 impl UserConfig {
