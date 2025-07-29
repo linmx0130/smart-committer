@@ -8,8 +8,9 @@ mod config;
 mod error;
 mod git;
 use clap::Parser;
-use error::SmartCommitterError;
+use error::{SmartCommitterError, SmartCommitterErrorKind};
 use std::path::PathBuf;
+use std::env;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -36,10 +37,23 @@ fn main() -> Result<(), SmartCommitterError> {
     None => {
       println!("No git repo found.");
       std::process::exit(1);
-      return Ok(());
     }
   };
-  println!("repo_root: {}", repo_root.to_string_lossy());
+
+  match env::set_current_dir(repo_root) {
+      Ok(()) => {}
+      Err(e) => {
+          return Err(SmartCommitterError {
+            kind: SmartCommitterErrorKind::IOError,
+            message: "Failed to access the git repo root.".to_owned(),
+            source: Some(Box::new(e))
+          });
+      }
+  }
+
+  let diff_content = git::get_diff()?;
+
+  println!("{}", diff_content);
 
   Ok(())
 }

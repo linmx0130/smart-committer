@@ -10,6 +10,7 @@ use std::fmt;
 #[derive(Debug)]
 pub enum SmartCommitterErrorKind {
   IOError,
+  VCSError,
   NetworkError,
 }
 
@@ -25,6 +26,9 @@ impl fmt::Display for SmartCommitterError {
     match &self.kind {
       SmartCommitterErrorKind::IOError => {
         write!(f, "IO Error: {}", self.message)?;
+      }
+      SmartCommitterErrorKind::VCSError => {
+        write!(f, "VCS Error: {}", self.message)?;
       }
       SmartCommitterErrorKind::NetworkError => {
         write!(f, "Network Error: {}", self.message)?;
