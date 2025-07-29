@@ -6,6 +6,7 @@
 
 mod config;
 mod error;
+mod git;
 use clap::Parser;
 use error::SmartCommitterError;
 use std::path::PathBuf;
@@ -29,5 +30,16 @@ fn main() -> Result<(), SmartCommitterError> {
   }
   let user_config = config::UserConfig::load_user_config();
   println!("{:?}", user_config);
+
+  let repo_root = match git::find_repo_root().unwrap() {
+    Some(p) => p,
+    None => {
+      println!("No git repo found.");
+      std::process::exit(1);
+      return Ok(());
+    }
+  };
+  println!("repo_root: {}", repo_root.to_string_lossy());
+
   Ok(())
 }
