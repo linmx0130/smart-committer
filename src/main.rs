@@ -18,7 +18,19 @@ use std::path::PathBuf;
 use tokio::runtime::Builder;
 
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(name = "Smart Committer")]
+#[command(version = "0.1")]
+#[command(
+  about = "Draft commit message with LLM",
+  long_about = "
+Smart-committer scans the code to be committed and generates a nice description 
+as the commit message. It may be used as an independent command or an editor
+for git.
+
+Github: https://github.com/linmx0130/smart-committer
+Copyright 2025 Mengxiao Lin, released under MPL-2.0.
+"
+)]
 struct Args {
   #[arg(long, action = clap::ArgAction::SetTrue, help="Reset config file")]
   config: bool,
@@ -34,7 +46,21 @@ fn main() -> Result<(), SmartCommitterError> {
     println!("Edit it to have correct configuration before using smart-committer!");
     return Ok(());
   }
-  let user_config = config::UserConfig::load_user_config()?.unwrap();
+  let user_config = match config::UserConfig::load_user_config()? {
+    Some(c) => c,
+    None => {
+      println!(
+        "Smart committer user config is not created! Please use following command to create the user config."
+      );
+      println!("");
+      let program_file_name = std::env::args()
+        .next()
+        .unwrap_or("smart-committer".to_owned());
+      println!("  {} --config", program_file_name);
+      println!("");
+      std::process::exit(1);
+    }
+  };
 
   let repo_root = match git::find_repo_root().unwrap() {
     Some(p) => p,
