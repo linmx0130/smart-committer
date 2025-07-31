@@ -75,3 +75,39 @@ pub fn get_diff() -> Result<String, SmartCommitterError> {
     }),
   }
 }
+
+pub fn commit_with_message_file(msg_file: &PathBuf) -> Result<(), SmartCommitterError> {
+  let mut command = Command::new("git");
+  command.arg("commit").arg("-eF").arg(msg_file);
+
+  let mut child = match command.spawn() {
+    Ok(child) => child,
+    Err(e) => {
+      return Err(SmartCommitterError {
+        kind: SmartCommitterErrorKind::VCSError,
+        message: "Failed to call git commit".to_owned(),
+        source: Some(Box::new(e)),
+      });
+    }
+  };
+  let status = match child.wait() {
+    Ok(s) => s,
+    Err(e) => {
+      return Err(SmartCommitterError {
+        kind: SmartCommitterErrorKind::VCSError,
+        message: "Failed to get git commit result".to_owned(),
+        source: Some(Box::new(e)),
+      });
+    }
+  };
+
+  let exit_code = status.code().unwrap_or(255);
+  if exit_code != 0 {
+    return Err(SmartCommitterError {
+      kind: SmartCommitterErrorKind::VCSError,
+      message: format!("VCS failed with exit code: {}", exit_code),
+      source: None,
+    });
+  }
+  Ok(())
+}

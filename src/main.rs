@@ -15,7 +15,7 @@ use serde_json::json;
 use std::env;
 use std::io::Write;
 use std::path::PathBuf;
-use tokio::runtime::{Builder, Runtime};
+use tokio::runtime::Builder;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -35,7 +35,6 @@ fn main() -> Result<(), SmartCommitterError> {
     return Ok(());
   }
   let user_config = config::UserConfig::load_user_config()?;
-  println!("{:?}", user_config);
 
   let repo_root = match git::find_repo_root().unwrap() {
     Some(p) => p,
@@ -60,7 +59,11 @@ fn main() -> Result<(), SmartCommitterError> {
 
   let msg = llm_draft_diff_message(diff_content, &user_config.unwrap().llm).unwrap();
   println!("{}", msg);
-
+  let mut temp_file = PathBuf::new();
+  temp_file.push(".git");
+  temp_file.push("SMART_COMMITTER_MSG");
+  save_message_to_file(&msg, &temp_file)?;
+  git::commit_with_message_file(&temp_file)?;
   Ok(())
 }
 
@@ -115,6 +118,9 @@ fn llm_draft_diff_message(
       for _ in 0..counter {
         let __ = stdout.write_all(b".");
       }
+      for _ in counter..10 {
+        let __ = stdout.write_all(b" ");
+      }
       let _ = stdout.flush();
 
       match delta_result {
@@ -133,4 +139,27 @@ fn llm_draft_diff_message(
     let _ = stdout.write_all(b"\n");
     Ok(message.content)
   })
+}
+
+fn save_message_to_file(content: &str, filename: &PathBuf) -> Result<(), SmartCommitterError> {
+  let mut file = match std::fs::File::create(filename) {
+    Ok(f) => f,
+    Err(e) => {
+      return Err(SmartCommitterError {
+        kind: SmartCommitterErrorKind::IOError,
+        message: format!("Failed to open file: {}", filename.to_string_lossy()),
+        source: Some(Box::new(e)),
+      });
+    }
+  };
+  match file.write_all(content.as_bytes()) {
+    Ok(_) => Ok(()),
+    Err(e) => {
+      return Err(SmartCommitterError {
+        kind: SmartCommitterErrorKind::IOError,
+        message: format!("Failed to write file: {}", filename.to_string_lossy()),
+        source: Some(Box::new(e)),
+      });
+    }
+  }
 }
