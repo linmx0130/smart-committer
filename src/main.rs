@@ -13,7 +13,7 @@ use futures_util::{StreamExt, pin_mut};
 use nah_chat::{ChatClient, ChatCompletionParamsBuilder, ChatMessage};
 use serde_json::json;
 use std::env;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use tokio::runtime::Builder;
 
@@ -34,7 +34,7 @@ fn main() -> Result<(), SmartCommitterError> {
     println!("Edit it to have correct configuration before using smart-committer!");
     return Ok(());
   }
-  let user_config = config::UserConfig::load_user_config()?;
+  let user_config = config::UserConfig::load_user_config()?.unwrap();
 
   let repo_root = match git::find_repo_root().unwrap() {
     Some(p) => p,
@@ -57,13 +57,86 @@ fn main() -> Result<(), SmartCommitterError> {
 
   let diff_content = git::get_diff()?;
 
-  let msg = llm_draft_diff_message(diff_content, &user_config.unwrap().llm).unwrap();
+  let msg = llm_draft_diff_message(diff_content, &user_config.llm).unwrap();
   println!("{}", msg);
+
+  match &args.commit_file_path {
+    Some(f) => editor_mode(&f, &msg, &user_config.editor),
+    None => plain_command_mode(&msg),
+  }
+}
+
+fn plain_command_mode(msg: &str) -> Result<(), SmartCommitterError> {
   let mut temp_file = PathBuf::new();
   temp_file.push(".git");
   temp_file.push("SMART_COMMITTER_MSG");
-  save_message_to_file(&msg, &temp_file)?;
+  save_message_to_file(msg, &temp_file)?;
   git::commit_with_message_file(&temp_file)?;
+  Ok(())
+}
+
+fn editor_mode(
+  commit_file_path: &PathBuf,
+  msg: &str,
+  editor_config: &config::EditorConfig,
+) -> Result<(), SmartCommitterError> {
+  let mut commit_file = match std::fs::File::open(commit_file_path) {
+    Ok(f) => f,
+    Err(e) => {
+      return Err(SmartCommitterError {
+        kind: SmartCommitterErrorKind::IOError,
+        message: format!(
+          "Failed to open file: {}",
+          commit_file_path.to_string_lossy()
+        ),
+        source: Some(Box::new(e)),
+      });
+    }
+  };
+  let mut commit_file_content = String::new();
+  let _ = commit_file.read_to_string(&mut commit_file_content);
+  let new_commit_file_content = format!("{}\n{}", msg, commit_file_content);
+  save_message_to_file(&new_commit_file_content, commit_file_path)?;
+
+  let mut editor_command_parts = editor_config.command.split(' ');
+  let mut editor_command = std::process::Command::new(editor_command_parts.next().unwrap());
+  loop {
+    match editor_command_parts.next() {
+      Some(v) => {
+        editor_command.arg(v);
+      }
+      None => {
+        break;
+      }
+    }
+  }
+  editor_command.arg(commit_file_path);
+
+  let mut editor = match editor_command.spawn() {
+    Ok(child) => child,
+    Err(e) => {
+      return Err(SmartCommitterError {
+        kind: SmartCommitterErrorKind::IOError,
+        message: "Failed to launch the editor".to_owned(),
+        source: Some(Box::new(e)),
+      });
+    }
+  };
+  let status = match editor.wait() {
+    Ok(s) => s,
+    Err(e) => {
+      return Err(SmartCommitterError {
+        kind: SmartCommitterErrorKind::IOError,
+        message: "Failed to get editor result".to_owned(),
+        source: Some(Box::new(e)),
+      });
+    }
+  };
+
+  let exit_code = status.code().unwrap_or(255);
+  if exit_code != 0 {
+    std::process::exit(exit_code);
+  }
   Ok(())
 }
 
