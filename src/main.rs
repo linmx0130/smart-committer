@@ -18,10 +18,10 @@ use std::path::PathBuf;
 use tokio::runtime::Builder;
 
 #[derive(Parser, Debug)]
-#[command(name = "Smart Committer")]
-#[command(version = "0.1")]
+#[command(name = "smart-committer")]
 #[command(
-  about = "Draft commit message with LLM",
+  version,
+  about = "📰Draft commit message with LLM",
   long_about = "
 Smart-committer scans the code to be committed and generates a nice description 
 as the commit message. It may be used as an independent command or an editor
@@ -42,30 +42,31 @@ fn main() -> Result<(), SmartCommitterError> {
   let args = Args::parse();
   if args.config {
     let path = config::UserConfig::create_user_config_template()?;
-    println!("Config file is created at {}", path.to_string_lossy());
-    println!("Edit it to have correct configuration before using smart-committer!");
+    eprintln!("Config file is created at {}", path.to_string_lossy());
+    eprintln!("Edit it to have correct configuration before using smart-committer!");
     return Ok(());
   }
   let user_config = match config::UserConfig::load_user_config()? {
     Some(c) => c,
     None => {
-      println!(
-        "Smart committer user config is not created! Please use following command to create the user config."
+      eprintln!(
+        "Smart-committer user config is not created! Please use following command to create the user config."
       );
-      println!("");
+      eprintln!("");
       let program_file_name = std::env::args()
         .next()
         .unwrap_or("smart-committer".to_owned());
-      println!("  {} --config", program_file_name);
-      println!("");
+      eprintln!("  {} --config", program_file_name);
+      eprintln!("");
       std::process::exit(1);
     }
   };
+  eprintln!("📰 Smart-committer is using {}", user_config.llm.model);
 
-  let repo_root = match git::find_repo_root().unwrap() {
+  let repo_root = match git::find_repo_root()? {
     Some(p) => p,
     None => {
-      println!("No git repo found.");
+      eprintln!("No git repo found.");
       std::process::exit(1);
     }
   };
@@ -82,8 +83,12 @@ fn main() -> Result<(), SmartCommitterError> {
   }
 
   let diff_content = git::get_diff()?;
+  if diff_content.trim().len() == 0 {
+    eprintln!("No change is staged! You may need to run `git add` to add files.");
+    std::process::exit(3);
+  }
 
-  let msg = llm_draft_diff_message(diff_content, &user_config.llm).unwrap();
+  let msg = llm_draft_diff_message(&diff_content, &user_config.llm)?;
   println!("{}", msg);
 
   match &args.commit_file_path {
@@ -167,7 +172,7 @@ fn editor_mode(
 }
 
 fn llm_draft_diff_message(
-  diff_content: String,
+  diff_content: &str,
   llm_config: &config::LLMConfig,
 ) -> Result<String, SmartCommitterError> {
   let tokio_runtime = Builder::new_current_thread()
@@ -197,7 +202,7 @@ fn llm_draft_diff_message(
   }];
 
   tokio_runtime.block_on(async {
-    let mut stdout = std::io::stdout();
+    let mut stderr = std::io::stderr();
     let chat_client = ChatClient::init(llm_config.base_url.clone(), llm_config.auth_token.clone());
     let stream = chat_client
       .chat_completion_stream(&llm_config.model, &messages, &params)
@@ -206,21 +211,21 @@ fn llm_draft_diff_message(
     pin_mut!(stream);
     let mut message = ChatMessage::new();
     let mut counter = 0;
-    print!("Drafting diff message");
-    let _ = stdout.flush();
+    eprint!("Drafting diff message");
+    let _ = stderr.flush();
     while let Some(delta_result) = stream.next().await {
       counter = counter + 1;
       if counter >= 10 {
         counter -= 10;
       }
-      print!("\rDrafting diff message");
+      eprint!("\rDrafting diff message");
       for _ in 0..counter {
-        let __ = stdout.write_all(b".");
+        let __ = stderr.write_all(b".");
       }
       for _ in counter..10 {
-        let __ = stdout.write_all(b" ");
+        let __ = stderr.write_all(b" ");
       }
-      let _ = stdout.flush();
+      let _ = stderr.flush();
 
       match delta_result {
         Ok(delta) => {
@@ -235,7 +240,7 @@ fn llm_draft_diff_message(
         }
       }
     }
-    let _ = stdout.write_all(b"\n");
+    let _ = stderr.write_all(b"\n");
     Ok(message.content)
   })
 }
