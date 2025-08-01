@@ -136,9 +136,29 @@ impl UserConfig {
   }
 
   /**
-   * Return the config file path. If the directories don't exists, create them.
+   * Return the config file path.
    */
   fn get_config_file_path() -> Result<std::path::PathBuf, SmartCommitterError> {
+    let mut config_file_path = Self::get_config_directory()?;
+    config_file_path.push("config.toml");
+
+    Ok(config_file_path)
+  }
+
+  /**
+   * Return the user prompt file path.
+   */
+  fn get_user_prompt_file_path() -> Result<std::path::PathBuf, SmartCommitterError> {
+    let mut config_file_path = Self::get_config_directory()?;
+    config_file_path.push("user_prompt");
+
+    Ok(config_file_path)
+  }
+
+  /**
+   * Return the config file directory. If the directories don't exists, create them.
+   */
+  pub fn get_config_directory() -> Result<std::path::PathBuf, SmartCommitterError> {
     let mut config_file_path = match std::env::home_dir() {
       Some(p) => p,
       None => {
@@ -167,9 +187,49 @@ impl UserConfig {
         }
       }
     }
-
-    config_file_path.push("config.toml");
-
     Ok(config_file_path)
   }
+
+  pub fn get_user_prompt_template() -> Result<String, SmartCommitterError> {
+    let user_prompt_file_path = Self::get_user_prompt_file_path()?;
+    if !user_prompt_file_path.exists() {
+      return Ok(DEFAULT_USER_PROMPT.to_owned());
+    }
+    let mut content = String::new();
+    let mut file = match std::fs::File::open(&user_prompt_file_path) {
+      Ok(f) => f,
+      Err(e) => {
+        return Err(SmartCommitterError {
+          kind: SmartCommitterErrorKind::IOError,
+          message: format!(
+            "Failed to read user prompt file: {}",
+            user_prompt_file_path.to_string_lossy()
+          ),
+          source: Some(Box::new(e)),
+        });
+      }
+    };
+    match file.read_to_string(&mut content) {
+      Ok(_) => Ok(content),
+      Err(e) => {
+        return Err(SmartCommitterError {
+          kind: SmartCommitterErrorKind::IOError,
+          message: format!(
+            "Failed to read user prompt file: {}",
+            user_prompt_file_path.to_string_lossy()
+          ),
+          source: Some(Box::new(e)),
+        });
+      }
+    }
+  }
 }
+
+const DEFAULT_USER_PROMPT: &str = "Based on this git diff output, draft a commit summary to concisely describe the changes. Requirements:
+1. The first line should be a title within 50 characters. 
+2. Then write a paragraph to describe the changes, what is added, and what is removed. You may use a list of bullet points. 
+3. Do not add any other explanation, do not add any field names.
+```
+{{DIFF_CONTENT}}
+```
+";

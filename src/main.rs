@@ -21,7 +21,7 @@ use tokio::runtime::Builder;
 #[command(name = "smart-committer")]
 #[command(
   version,
-  about = "📰Draft commit message with LLM",
+  about = "📰 Draft commit message with LLM",
   long_about = "
 Smart-committer scans the code to be committed and generates a nice description 
 as the commit message. It may be used as an independent command or an editor
@@ -88,7 +88,7 @@ fn main() -> Result<(), SmartCommitterError> {
     std::process::exit(3);
   }
 
-  let msg = llm_draft_diff_message(&diff_content, &user_config.llm)?;
+  let msg = llm_draft_diff_message(&diff_content, &user_config)?;
   println!("{}", msg);
 
   match &args.commit_file_path {
@@ -173,7 +173,7 @@ fn editor_mode(
 
 fn llm_draft_diff_message(
   diff_content: &str,
-  llm_config: &config::LLMConfig,
+  user_config: &config::UserConfig,
 ) -> Result<String, SmartCommitterError> {
   let tokio_runtime = Builder::new_current_thread()
     .enable_io()
@@ -181,18 +181,11 @@ fn llm_draft_diff_message(
     .build()
     .unwrap();
 
-  let user_message = "Based on this git diff output, draft a commit summary to concisely describe the changes. Requirements:
-1. The first line should be a title within 50 characters. 
-2. Then write a paragraph to describe the changes, what is added, and what is removed. You may use a list of bullet points. 
-3. Do not add any other explanation, do not add any field names.
-```
-{{DIFF_CONTENT}}
-```
-".replace("{{DIFF_CONTENT}}", &diff_content);
+  let user_message =
+    config::UserConfig::get_user_prompt_template()?.replace("{{DIFF_CONTENT}}", &diff_content);
 
   let mut params = ChatCompletionParamsBuilder::new();
   params.max_token(32768);
-  params.insert("enable_thinking", json!(false));
   let messages = vec![ChatMessage {
     role: "user".to_owned(),
     content: user_message,
@@ -203,9 +196,12 @@ fn llm_draft_diff_message(
 
   tokio_runtime.block_on(async {
     let mut stderr = std::io::stderr();
-    let chat_client = ChatClient::init(llm_config.base_url.clone(), llm_config.auth_token.clone());
+    let chat_client = ChatClient::init(
+      user_config.llm.base_url.clone(),
+      user_config.llm.auth_token.clone(),
+    );
     let stream = chat_client
-      .chat_completion_stream(&llm_config.model, &messages, &params)
+      .chat_completion_stream(&user_config.llm.model, &messages, &params)
       .await
       .unwrap();
     pin_mut!(stream);
