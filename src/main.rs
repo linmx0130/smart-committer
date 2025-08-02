@@ -186,6 +186,14 @@ fn llm_draft_diff_message(
 
   let mut params = ChatCompletionParamsBuilder::new();
   params.max_token(32768);
+  user_config.llm.enable_thinking.and_then(|t| {
+    params.insert("enable_thinking", json!(t));
+    Some(())
+  });
+  user_config.llm.temperature.and_then(|t| {
+    params.temperature(t);
+    Some(())
+  });
   let messages = vec![ChatMessage {
     role: "user".to_owned(),
     content: user_message,

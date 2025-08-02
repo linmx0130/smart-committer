@@ -36,7 +36,15 @@ pub struct LLMConfig {
   pub model: String,
 
   /** Auth token of the LLM server */
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub auth_token: Option<String>,
+
+  /** Whether to enable thinking. This parameter should only be set for Qwen models */
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub enable_thinking: Option<bool>,
+
+  /** Temperature parameter */
+  pub temperature: Option<f64>,
 }
 
 impl UserConfig {
@@ -102,6 +110,8 @@ impl UserConfig {
         base_url: "https://api.openai.com/v1".to_owned(),
         model: "gpt-4.1".to_owned(),
         auth_token: Some("<AUTH TOKEN HERE>".to_owned()),
+        enable_thinking: None,
+        temperature: None,
       },
     };
 
