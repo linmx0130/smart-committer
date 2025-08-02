@@ -15,15 +15,15 @@ $HOME/.config/smart-committer/config.toml
 Only `git` is supported now. More VCS supports are coming soon.
 
 ## Quick start
-You may download a binary from [Release](https://github.com/linmx0130/smart-committer/releases).
-Then put the file to a local binary path. For example, on Linux,
+You can download a binary from [Release](https://github.com/linmx0130/smart-committer/releases).
+Then put the file in a local binary path. For example, on Linux,
 
 ```
 $ tar xvf smart-committer-linux-x86_64.tar.gz
 $ sudo mv scommit /usr/local/bin/scommit
 ```
 
-Then initialize the configuration with following commands. You may replace `vi` with the editor you love.
+Then initialize the configuration with the following commands. You may replace `vi` with the editor you love.
 ```
 $ scommit --config
 $ vi $HOME/.config/smart-committer/config.toml
@@ -35,6 +35,8 @@ $ git clone git@github.com:linmx0130/smart-committer.git
 $ cd smart-committer && cargo build --release
 $ sudo mv target/release/scommit /usr/local/bin/scommit
 ```
+
+See [our wiki](https://github.com/linmx0130/smart-committer/wiki) for more documents.
 
 ## Copyright
 Copyright 2025, Mengxiao Lin. Released with MPL-2.0. Check [LICENSE](LICENSE) file.
