@@ -89,7 +89,6 @@ fn main() -> Result<(), SmartCommitterError> {
   }
 
   let msg = llm_draft_diff_message(&diff_content, &user_config)?;
-  println!("{}", msg);
 
   match &args.commit_file_path {
     Some(f) => editor_mode(&f, &msg, &user_config.editor),
