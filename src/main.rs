@@ -184,7 +184,7 @@ fn llm_draft_diff_message(
     config::UserConfig::get_user_prompt_template()?.replace("{{DIFF_CONTENT}}", &diff_content);
 
   let mut params = ChatCompletionParamsBuilder::new();
-  params.max_token(32768);
+  params.max_tokens(4096);
   user_config.llm.enable_thinking.and_then(|t| {
     params.insert("enable_thinking", json!(t));
     Some(())
