@@ -10,8 +10,10 @@ mod git;
 use clap::Parser;
 use error::{SmartCommitterError, SmartCommitterErrorKind};
 use futures_util::{StreamExt, pin_mut};
+use mini_poml_rs::MarkdownPomlRenderer;
 use nah_chat::{ChatClient, ChatCompletionParamsBuilder, ChatMessage};
 use serde_json::json;
+use std::collections::HashMap;
 use std::env;
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -180,11 +182,15 @@ fn llm_draft_diff_message(
     .build()
     .unwrap();
 
-  let user_message =
-    config::UserConfig::get_user_prompt_template()?.replace("{{DIFF_CONTENT}}", &diff_content);
+  let mut render_context_map = HashMap::new();
+  render_context_map.insert("DIFF_CONTENT".to_string(), json!(diff_content));
+  let user_prompt_tempate = config::UserConfig::get_user_prompt_template()?;
+  let mut prompt_renderer =
+    MarkdownPomlRenderer::create_from_doc_and_variables(&user_prompt_tempate, render_context_map);
+  let user_message = prompt_renderer.render().unwrap();
 
   let mut params = ChatCompletionParamsBuilder::new();
-  params.max_tokens(4096);
+  params.max_tokens(8192);
   user_config.llm.enable_thinking.and_then(|t| {
     params.insert("enable_thinking", json!(t));
     Some(())

@@ -36,6 +36,16 @@ $ cd smart-committer && cargo build --release
 $ sudo mv target/release/scommit /usr/local/bin/scommit
 ```
 
+### Customized prompt
+A default prompt that asks the model to generate a summary based on the Git output can be found 
+in [src/config.rs](src/config.rs). If you want to use a customized prompt, draft a 
+[POML](https://microsoft.github.io/poml/latest/) file as `$HOME/.config/smart-committer/user_prompt.poml`.
+
+The git diff output will be parsed as variable `DIFF_CONTENT` and can be referenced in the POML code. 
+Smart-committer uses [`mini-poml-rs`](https://github.com/linmx0130/mini-poml-rs) to parse the POML
+code, which may not support all POML features. See the introduction in `mini-poml-rs` for more details.
+
+### Learn more
 See [our wiki](https://github.com/linmx0130/smart-committer/wiki) for more documents.
 
 ## Copyright

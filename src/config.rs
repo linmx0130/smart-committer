@@ -160,7 +160,7 @@ impl UserConfig {
    */
   fn get_user_prompt_file_path() -> Result<std::path::PathBuf, SmartCommitterError> {
     let mut config_file_path = Self::get_config_directory()?;
-    config_file_path.push("user_prompt");
+    config_file_path.push("user_prompt.poml");
 
     Ok(config_file_path)
   }
@@ -235,11 +235,22 @@ impl UserConfig {
   }
 }
 
-const DEFAULT_USER_PROMPT: &str = "Based on this git diff output, draft a commit summary to concisely describe the changes. Requirements:
-1. The first line should be a title within 50 characters. 
-2. Then write a paragraph to describe the changes, what is added, and what is removed. You may use a list of bullet points. 
-3. Do not add any other explanation, do not add any field names.
-```
-{{DIFF_CONTENT}}
-```
-";
+const DEFAULT_USER_PROMPT: &str = r#"<poml>
+<cp caption="Task">
+  <p>Based on this git diff output, draft a commit summary to concisely describe the changes. </p>
+  <h>Requirements</h>
+  <list>
+    <item>The first line should be a title within 50 characters.</item>
+    <item>Then write a paragraph to describe the changes, what is added, and what is removed. You may use a list of bullet points.</item>
+    <item>Do not add any other explanation, do not add any field names.</item>
+  </list>
+</cp>
+
+<h>Git diff output</h>
+<p>```</p>
+<p>
+{{ DIFF_CONTENT }}
+</p>
+<p>```</p>
+</poml>
+"#;
