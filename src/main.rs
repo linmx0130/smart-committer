@@ -100,11 +100,11 @@ fn main() -> Result<(), SmartCommitterError> {
 
 fn plain_command_mode(msg: &str) -> Result<(), SmartCommitterError> {
   let mut temp_file = PathBuf::new();
-  temp_file.push(".git");
-  temp_file.push("SMART_COMMITTER_MSG");
+  temp_file.push(".SMART_COMMITTER_MSG");
   save_message_to_file(msg, &temp_file)?;
-  git::commit_with_message_file(&temp_file)?;
-  Ok(())
+  let git_commit_result = git::commit_with_message_file(&temp_file);
+  let _ = std::fs::remove_file(temp_file);
+  git_commit_result
 }
 
 fn editor_mode(
